@@ -49,6 +49,13 @@ async function ensureSchema(p: Pool): Promise<void> {
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     revoked_at TIMESTAMPTZ NULL
   )`);
+  await p.query(`CREATE TABLE IF NOT EXISTS spotify_accounts (
+    user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    spotify_user_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    refresh_token_enc TEXT NOT NULL,
+    connected_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`);
 }
 
 /** Parameterized query ($1, $2, ...). Creates the tables on first use. */

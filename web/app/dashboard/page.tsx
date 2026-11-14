@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [spotify, setSpotify] = useState<{ connected: boolean; displayName?: string } | null>(null);
+  const [notice, setNotice] = useState('');
 
   async function loadKeys() {
     const res = await fetch('/api/keys', { credentials: 'same-origin' });
@@ -34,10 +36,29 @@ export default function Dashboard() {
     const data = await res.json();
     setLoggedIn(true);
     setKeys(data.keys);
+    const st = await fetch('/api/spotify/status', { credentials: 'same-origin' });
+    if (st.ok) setSpotify(await st.json());
   }
   useEffect(() => {
     loadKeys();
+    const result = new URLSearchParams(window.location.search).get('spotify');
+    const messages: Record<string, string> = {
+      connected: 'Spotify connected. Your widget will now show your music.',
+      denied: 'You declined the Spotify request.',
+      bad_state: 'That Spotify link expired. Try connecting again.',
+      failed: 'Spotify could not be connected. Try again.',
+      login_required: 'Log in, then connect Spotify.',
+    };
+    if (result && messages[result]) setNotice(messages[result]);
   }, []);
+
+  function disconnectSpotify() {
+    if (!window.confirm('Disconnect Spotify? Your widgets will stop showing music until you reconnect.')) return;
+    run(async () => {
+      await call('/api/spotify/connect', { method: 'DELETE' });
+      await loadKeys();
+    });
+  }
 
   async function run(action: () => Promise<void>) {
     setError('');
@@ -188,6 +209,29 @@ export default function Dashboard() {
           <>
             <span className="eyebrow">Dashboard</span>
             <h1 className="sample-title">Your API keys</h1>
+
+            <div className="card">
+              <div className="row-between">
+                <h2>Spotify</h2>
+                <span className={`status ${spotify?.connected ? 'active' : ''}`}>
+                  {spotify?.connected ? 'Connected' : 'Not connected'}
+                </span>
+              </div>
+              {notice && <p className="hint" style={{ color: 'var(--accent)' }}>{notice}</p>}
+              {spotify?.connected ? (
+                <div className="row-actions" style={{ marginTop: 12 }}>
+                  <span>Showing music from <strong>{spotify.displayName}</strong></span>
+                  <button className="btn small danger" onClick={disconnectSpotify} disabled={busy}>Disconnect</button>
+                </div>
+              ) : (
+                <>
+                  <p className="lead" style={{ marginTop: 8 }}>
+                    Connect your Spotify account so your widgets show what you are listening to.
+                  </p>
+                  <a className="btn" href="/api/spotify/connect">Connect Spotify</a>
+                </>
+              )}
+            </div>
 
             <div className="card">
               <h2>Create a key</h2>
