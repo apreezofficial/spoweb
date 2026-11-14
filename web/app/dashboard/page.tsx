@@ -136,7 +136,7 @@ export default function Dashboard() {
   const footer = (
     <footer className="site-foot">
       <span>spoweb</span>
-      <span>Built by <a href="https://preciousadeodokun.com.ng">preciousadeodokun.com.ng</a></span>
+      <span>Built by <a href="https://preciousadedokun.com.ng">preciousadedokun.com.ng</a></span>
     </footer>
   );
 

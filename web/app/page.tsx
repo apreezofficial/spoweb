@@ -84,7 +84,7 @@ const { isPlaying, track } = await spotify.getNowPlaying();`}</code>
       </section>
 
       <footer>
-        Built by <a href="https://preciousadeodokun.com.ng">preciousadeodokun.com.ng</a>
+        Built by <a href="https://preciousadedokun.com.ng">preciousadedokun.com.ng</a>
       </footer>
 
       {flags.showDevBadge && process.env.NODE_ENV === 'development' && (
