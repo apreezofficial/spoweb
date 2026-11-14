@@ -2,6 +2,19 @@
   --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --line: #27272a;
   --card: #18181b; --accent: #1db954;
 }
+
+/* Light theme: follows the system setting, or force it with <html data-theme="light">. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fafafa; --fg: #09090b; --muted: #52525b; --line: #e4e4e7; --card: #ffffff;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #fafafa; --fg: #09090b; --muted: #52525b; --line: #e4e4e7; --card: #ffffff;
+}
+:root[data-theme="dark"] {
+  --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --line: #27272a; --card: #18181b;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);

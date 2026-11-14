@@ -4,6 +4,15 @@ import { query } from '@/lib/db';
 import { fail, readJson } from '@/lib/http';
 
 export async function POST(req: Request) {
+  try {
+    return await handle(req);
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    return fail(`Server error: ${err.code ?? ""} ${err.message ?? "unknown"}`.trim(), 500);
+  }
+}
+
+async function handle(req: Request) {
   const body = await readJson(req);
   const email = String(body.email ?? '').trim().toLowerCase();
   const password = String(body.password ?? '');
