@@ -3,14 +3,13 @@ import { setSession, verifyPassword } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { fail, readJson } from '@/lib/http';
 
-
 export async function POST(req: Request) {
   const body = await readJson(req);
   const email = String(body.email ?? '').trim().toLowerCase();
   const password = String(body.password ?? '');
 
-  const rows = await query<{ id: number; password_hash: string }[]>(
-    'SELECT id, password_hash FROM users WHERE email = ?',
+  const { rows } = await query<{ id: number; password_hash: string }>(
+    'SELECT id, password_hash FROM users WHERE email = $1',
     [email],
   );
   const user = rows[0];

@@ -4,7 +4,6 @@ import { query } from '@/lib/db';
 import { fail } from '@/lib/http';
 import { getNowPlaying } from '@/lib/spotify';
 
-
 // Public widget API. Requires a key from the dashboard in the x-api-key header.
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,11 +19,11 @@ export async function GET(req: Request) {
   const key = req.headers.get('x-api-key') ?? '';
   if (!key) return NextResponse.json({ error: 'Missing x-api-key header' }, { status: 401, headers: CORS });
 
-  const rows = await query<{ id: number }[]>(
-    'SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL',
+  const { rowCount } = await query(
+    'SELECT id FROM api_keys WHERE key_hash = $1 AND revoked_at IS NULL',
     [hashKey(key)],
   );
-  if (!rows.length) return NextResponse.json({ error: 'Invalid or revoked API key' }, { status: 401, headers: CORS });
+  if (!rowCount) return NextResponse.json({ error: 'Invalid or revoked API key' }, { status: 401, headers: CORS });
 
   try {
     return NextResponse.json(await getNowPlaying(), {

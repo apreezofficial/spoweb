@@ -1,53 +1,63 @@
-import mysql from 'mysql2/promise';
+import { Pool, type QueryResult, type QueryResultRow } from 'pg';
 
-// Aiven MySQL. DATABASE_URL example:
-//   mysql://user:password@host:port/defaultdb
-// MYSQL_CA is the CA certificate PEM from Aiven (recommended).
+// Aiven PostgreSQL. DATABASE_URL is the service URI from the Aiven console:
+//   postgres://user:password@host:port/defaultdb?sslmode=require
+// DATABASE_CA is Aiven's CA certificate PEM (recommended; use \n for newlines).
 
 declare global {
   // eslint-disable-next-line no-var
-  var __spowebPool: mysql.Pool | undefined;
+  var __spowebPool: Pool | undefined;
   // eslint-disable-next-line no-var
   var __spowebSchema: Promise<void> | undefined;
 }
 
-function pool(): mysql.Pool {
+function pool(): Pool {
   if (!global.__spowebPool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('DATABASE_URL is not set');
-    global.__spowebPool = mysql.createPool({
-      uri: url,
-      connectionLimit: 5,
-      ssl: { rejectUnauthorized: true, ca: process.env.MYSQL_CA || undefined },
+    const raw = process.env.DATABASE_URL;
+    if (!raw) throw new Error('DATABASE_URL is not set');
+    // Parse the URL ourselves so sslmode in the query string can't override our TLS settings.
+    const u = new URL(raw);
+    global.__spowebPool = new Pool({
+      host: u.hostname,
+      port: Number(u.port || 5432),
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: decodeURIComponent(u.pathname.slice(1)) || 'defaultdb',
+      // Local development databases skip TLS; every other host requires it.
+      ssl: ['localhost', '127.0.0.1'].includes(u.hostname)
+        ? false
+        : { rejectUnauthorized: true, ca: process.env.DATABASE_CA?.replace(/\\n/g, '\n') || undefined },
+      max: 5,
     });
   }
   return global.__spowebPool;
 }
 
-async function ensureSchema(p: mysql.Pool): Promise<void> {
+async function ensureSchema(p: Pool): Promise<void> {
   await p.query(`CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at DATETIME NOT NULL
+    id SERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`);
   await p.query(`CREATE TABLE IF NOT EXISTS api_keys (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    key_hash CHAR(64) NOT NULL UNIQUE,
-    prefix VARCHAR(16) NOT NULL,
-    label VARCHAR(60) NOT NULL,
-    created_at DATETIME NOT NULL,
-    revoked_at DATETIME NULL,
-    CONSTRAINT fk_keys_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key_hash CHAR(64) UNIQUE NOT NULL,
+    prefix TEXT NOT NULL,
+    label TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at TIMESTAMPTZ NULL
   )`);
 }
 
-/** Runs a parameterized query. Creates the tables on first use. */
-export async function query<T = any>(sql: string, params: unknown[] = []): Promise<T> {
+/** Parameterized query ($1, $2, ...). Creates the tables on first use. */
+export async function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params: unknown[] = [],
+): Promise<QueryResult<T>> {
   const p = pool();
   if (!global.__spowebSchema) global.__spowebSchema = ensureSchema(p);
   await global.__spowebSchema;
-  const [rows] = await p.query(sql, params);
-  return rows as T;
+  return p.query<T>(text, params);
 }
