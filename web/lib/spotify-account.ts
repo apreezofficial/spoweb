@@ -1,7 +1,7 @@
 import { query } from '@/lib/db';
 import { decrypt, encrypt } from '@/lib/crypto';
 
-export const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-recently-played';
+export const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-recently-played user-read-playback-state';
 
 /** Where Spotify sends the user back. Set SPOTIFY_REDIRECT_URI to the exact URI registered in the Spotify app. */
 export function redirectUri(req: Request): string {

@@ -85,6 +85,34 @@ export default function Sample() {
               />
             </div>
 
+            {data.queue && data.queue.length > 0 && (
+              <div className="card" style={{ marginTop: 24 }}>
+                <div className="row-between">
+                  <h2>Up next</h2>
+                  <span className="hint" style={{ margin: 0 }}>{data.queue.length} in queue</span>
+                </div>
+                <div className="key-list">
+                  {data.queue.map((t, i) => (
+                    <div key={`${t.id}-${i}`} className="key-item">
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                        {t.albumArt ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={t.albumArt} alt="" width={40} height={40} style={{ borderRadius: 6 }} />
+                        ) : (
+                          <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--line)' }} />
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div className="label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                          <div className="prefix">{t.artist}</div>
+                        </div>
+                      </div>
+                      <span className="prefix">{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="hint" style={{ marginTop: 28 }}>
               Want this on your own site? <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Create an API key</Link>.
             </p>

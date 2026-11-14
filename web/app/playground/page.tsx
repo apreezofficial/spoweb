@@ -1,32 +1,67 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { NowPlaying, Track } from '@/lib/spotify';
 
 type Result = { status: number; body: unknown } | null;
-type Track = { title: string; artist: string; albumArt: string | null; id: string; url: string };
+type Status = { loggedIn: boolean; connected: boolean; displayName?: string };
 
 const SNIPPET_REACT = `import { SpotifyNowPlaying } from 'spoweb';
 
 export default function Page() {
   return <SpotifyNowPlaying apiKey="YOUR_API_KEY" />;
 }`;
-
 const SNIPPET_JS = `import { createSpotifyClient } from 'spoweb';
 
 const spotify = createSpotifyClient({ apiKey: 'YOUR_API_KEY' });
 const { isPlaying, track } = await spotify.getNowPlaying();
 console.log(track?.title, track?.artist, isPlaying);`;
+const SNIPPET_CURL = `curl -H "x-api-key: YOUR_API_KEY" https://spoweb.apcodesphere.xyz/api/v1/now-playing`;
 
-const SNIPPET_CURL = `curl -H "x-api-key: YOUR_API_KEY" https://web-seven-omega-90.vercel.app/api/v1/now-playing`;
+function TrackRow({ track, live }: { track: Track; live: boolean }) {
+  return (
+    <div className="track" style={{ marginTop: 14 }}>
+      {track.albumArt ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={track.albumArt} alt="" />
+      ) : (
+        <div className="art-fallback" />
+      )}
+      <div style={{ minWidth: 0 }}>
+        <div className="name">{track.title}</div>
+        <div className="artist">{track.artist}</div>
+      </div>
+      <span className="live" style={{ marginLeft: 'auto' }}>
+        {live ? (<><span className="dot" />Live</>) : 'Last played'}
+      </span>
+    </div>
+  );
+}
 
-/** Try your API key: see the live response and a preview of the widget. The key is never stored. */
+/** Step by step: connect Spotify, preview your music, then try an API key. */
 export default function Playground() {
+  const [status, setStatus] = useState<Status | null>(null);
+  const [preview, setPreview] = useState<NowPlaying | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result>(null);
   const [tab, setTab] = useState<'react' | 'js' | 'curl'>('react');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const keysRes = await fetch('/api/keys', { credentials: 'same-origin' });
+      const st = await fetch('/api/spotify/status', { credentials: 'same-origin' });
+      const spotify = st.ok ? await st.json() : { connected: false };
+      const loggedIn = keysRes.status !== 401;
+      setStatus({ loggedIn, connected: Boolean(spotify.connected), displayName: spotify.displayName });
+      if (loggedIn && spotify.connected) {
+        const p = await fetch('/api/me/now-playing', { credentials: 'same-origin' });
+        if (p.ok) setPreview(await p.json());
+      }
+    })();
+  }, []);
 
   async function tryKey(e: React.FormEvent) {
     e.preventDefault();
@@ -45,8 +80,8 @@ export default function Playground() {
   }
 
   const snippet = tab === 'react' ? SNIPPET_REACT : tab === 'js' ? SNIPPET_JS : SNIPPET_CURL;
-  const track = (result?.body as { track?: Track | null })?.track ?? null;
-  const isPlaying = Boolean((result?.body as { isPlaying?: boolean })?.isPlaying);
+  const keyTrack = (result?.body as { track?: Track | null })?.track ?? null;
+  const keyPlaying = Boolean((result?.body as { isPlaying?: boolean })?.isPlaying);
 
   async function copySnippet() {
     try {
@@ -57,6 +92,8 @@ export default function Playground() {
       /* clipboard blocked; the code is still visible */
     }
   }
+
+  const step1Done = status?.connected;
 
   return (
     <div className="page">
@@ -72,13 +109,61 @@ export default function Playground() {
 
       <main className="page-main" style={{ maxWidth: 680 }}>
         <span className="eyebrow">Playground</span>
-        <h1 className="sample-title">Try your key</h1>
-        <p className="lead">
-          Paste an API key from your dashboard to see the live response and how the widget will look. The key is only
-          sent to spoweb to make this request. It isn&apos;t saved.
-        </p>
+        <h1 className="sample-title">Try it out</h1>
 
+        {/* Step 1: account and Spotify */}
         <div className="card">
+          <div className="row-between">
+            <h2>1. Connect Spotify</h2>
+            <span className={`status ${step1Done ? 'active' : ''}`}>{step1Done ? 'Connected' : 'Not yet'}</span>
+          </div>
+          {!status && <p className="hint">Checking your account…</p>}
+          {status && !status.loggedIn && (
+            <>
+              <p className="lead" style={{ marginTop: 8 }}>
+                Create a free account or log in first. Then connect the Spotify account you want to show.
+              </p>
+              <Link className="btn" href="/dashboard">Log in or create account</Link>
+            </>
+          )}
+          {status?.loggedIn && !status.connected && (
+            <>
+              <p className="lead" style={{ marginTop: 8 }}>
+                Connect Spotify so your widget can show what you are listening to.
+              </p>
+              <a className="btn" href="/api/spotify/connect">Connect Spotify</a>
+            </>
+          )}
+          {status?.loggedIn && status.connected && (
+            <>
+              <p className="hint" style={{ marginTop: 8 }}>
+                Connected as <strong>{status.displayName}</strong>. Here is what your widget will show:
+              </p>
+              {preview?.track ? (
+                <>
+                  <TrackRow track={preview.track} live={preview.isPlaying} />
+                  {preview.queue && preview.queue.length > 0 && (
+                    <p className="hint">Up next: {preview.queue.slice(0, 3).map((t) => t.title).join(', ')}</p>
+                  )}
+                </>
+              ) : (
+                <p className="hint">Nothing played on this account yet. Play a song on Spotify and refresh.</p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Step 2: API key */}
+        <div className="card">
+          <h2>2. Try your API key</h2>
+          <p className="lead" style={{ marginTop: 6 }}>
+            {status?.loggedIn ? (
+              <>Need a key? <Link href="/dashboard" style={{ color: 'var(--accent)' }}>Create one on your dashboard</Link>.</>
+            ) : (
+              'Log in to create a key. Paste it here to see the live response.'
+            )}{' '}
+            The key is only sent to make this request. It isn&apos;t saved.
+          </p>
           <form className="row-actions" onSubmit={tryKey}>
             <input
               className="input"
@@ -90,9 +175,7 @@ export default function Playground() {
               onChange={(e) => setApiKey(e.target.value)}
               style={{ flex: 1, minWidth: 200, fontFamily: 'ui-monospace, Menlo, monospace' }}
             />
-            <button className="btn" disabled={busy || !apiKey.trim()}>
-              {busy ? 'Checking…' : 'Try it'}
-            </button>
+            <button className="btn" disabled={busy || !apiKey.trim()}>{busy ? 'Checking…' : 'Try it'}</button>
           </form>
 
           {result && (
@@ -101,28 +184,7 @@ export default function Playground() {
                 <strong>{result.status === 200 ? 'Working' : `Error ${result.status || ''}`}</strong>
                 <span className={`status ${result.status === 200 ? 'active' : ''}`}>HTTP {result.status || 'network'}</span>
               </div>
-
-              {result.status === 200 && track && (
-                <div className="track" style={{ marginTop: 14 }}>
-                  {track.albumArt ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={track.albumArt} alt="" />
-                  ) : (
-                    <div className="art-fallback" />
-                  )}
-                  <div style={{ minWidth: 0 }}>
-                    <div className="name">{track.title}</div>
-                    <div className="artist">{track.artist}</div>
-                  </div>
-                  <span className="live" style={{ marginLeft: 'auto' }}>
-                    {isPlaying ? (<><span className="dot" />Live</>) : 'Last played'}
-                  </span>
-                </div>
-              )}
-              {result.status === 200 && !track && (
-                <p className="hint">Nothing has been played on this account yet.</p>
-              )}
-
+              {result.status === 200 && keyTrack && <TrackRow track={keyTrack} live={keyPlaying} />}
               <pre style={{ marginTop: 14, borderRadius: 12, fontSize: 13, maxHeight: 260, overflow: 'auto' }}>
                 <code>{JSON.stringify(result.body, null, 2)}</code>
               </pre>
@@ -130,25 +192,21 @@ export default function Playground() {
           )}
         </div>
 
+        {/* Step 3: code */}
         <div className="card">
           <div className="row-between">
-            <h2>Use it on your site</h2>
+            <h2>3. Use it on your site</h2>
             <button className="btn small ghost" onClick={copySnippet}>{copied ? 'Copied' : 'Copy'}</button>
           </div>
           <div className="tabs" style={{ marginTop: 14 }}>
             {(['react', 'js', 'curl'] as const).map((t) => (
-              <button
-                key={t}
-                className={`tab ${tab === t ? 'active' : ''}`}
-                onClick={() => setTab(t)}
-                style={{ cursor: 'pointer' }}
-              >
+              <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)} style={{ cursor: 'pointer' }}>
                 {t === 'react' ? 'React' : t === 'js' ? 'JavaScript' : 'curl'}
               </button>
             ))}
           </div>
           <pre style={{ marginTop: 0 }}><code>{snippet}</code></pre>
-          <p className="hint">Replace YOUR_API_KEY with your key. In the browser, the key is visible to visitors, so use a read-only key.</p>
+          <p className="hint">Replace YOUR_API_KEY with your key. Browser code exposes the key to visitors, so keep the key read-only.</p>
         </div>
       </main>
 

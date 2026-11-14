@@ -1,4 +1,5 @@
 import { flags } from '@/lib/flags';
+import HeroNowPlaying from '@/app/HeroNowPlaying';
 
 export default function Home() {
   return (
@@ -30,14 +31,7 @@ export default function Home() {
               <div className="cell">O</div>
               <div className="cell on" />
             </div>
-            <div className="now">
-              <div className="art" />
-              <div>
-                <div className="title">Your current track</div>
-                <div className="sub">Artist · Album</div>
-              </div>
-              <span className="live">● Live</span>
-            </div>
+            <HeroNowPlaying />
           </>
         )}
         <div style={{ marginTop: 28 }}>

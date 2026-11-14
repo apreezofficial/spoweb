@@ -6,7 +6,7 @@ export type Track = {
   albumArt: string | null;
   url: string;
 };
-export type NowPlaying = { isPlaying: boolean; track: Track | null };
+export type NowPlaying = { isPlaying: boolean; track: Track | null; queue?: Track[] };
 
 type SpotifyTrack = {
   id: string;
@@ -93,4 +93,23 @@ export async function getNowPlaying(): Promise<NowPlaying> {
   const refresh = process.env.SPOTIFY_REFRESH_TOKEN;
   if (!refresh) throw new Error('SPOTIFY_REFRESH_TOKEN is not set');
   return nowPlayingForRefreshToken(refresh);
+}
+
+/** Upcoming tracks in the Spotify queue. Needs the user-read-playback-state scope; returns [] if unavailable. */
+export async function queueForRefreshToken(refreshToken: string): Promise<Track[]> {
+  try {
+    const headers = { Authorization: `Bearer ${await accessTokenFromRefresh(refreshToken)}` };
+    const res = await fetch('https://api.spotify.com/v1/me/player/queue', { headers, cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { queue: SpotifyTrack[] };
+    return (data.queue ?? []).filter((t) => t && t.id).slice(0, 10).map(shape);
+  } catch {
+    return [];
+  }
+}
+
+/** Now playing plus the queue, for the sample page and dashboard preview. */
+export async function richNowPlaying(refreshToken: string): Promise<NowPlaying> {
+  const [now, queue] = await Promise.all([nowPlayingForRefreshToken(refreshToken), queueForRefreshToken(refreshToken)]);
+  return { ...now, queue };
 }
