@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>spoweb: Spotify now playing for your website</title>
+  <meta name="description" content="Add a live Spotify now-playing widget to any website with one API key." />
+  <style>
+    :root { --bg:#fff; --fg:#111; --muted:#555; --accent:#1db954; --code:#f4f4f5; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0b0b0c; --fg:#f2f2f2; --muted:#a1a1aa; --code:#18181b; } }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui,-apple-system,sans-serif; }
+    main { max-width:720px; margin:0 auto; padding:64px 20px; }
+    h1 { font-size:2.25rem; margin:0 0 8px; }
+    h2 { font-size:1.25rem; margin:40px 0 12px; }
+    p, li { color:var(--muted); }
+    a { color:var(--accent); }
+    pre { background:var(--code); padding:14px; border-radius:10px; overflow-x:auto; font-size:14px; }
+    code { font-family:ui-monospace,Menlo,monospace; }
+    .pill { display:inline-block; font-size:13px; padding:4px 10px; border-radius:999px; background:var(--code); color:var(--fg); }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="pill">npm install spoweb</span>
+    <h1>spoweb</h1>
+    <p>Show what you're listening to on your website. A live Spotify now-playing card with Spotify's player, updated every 30 seconds, from one API key.</p>
+
+    <h2>Install</h2>
+    <pre><code>npm install spoweb</code></pre>
+
+    <h2>React or Next.js</h2>
+    <pre><code>import { SpotifyNowPlaying } from 'spoweb';
+
+export default function Page() {
+  return &lt;SpotifyNowPlaying apiKey={process.env.NEXT_PUBLIC_SPOWEB_KEY} /&gt;;
+}</code></pre>
+
+    <h2>Plain JavaScript</h2>
+    <pre><code>import { createSpotifyClient } from 'spoweb';
+
+const spotify = createSpotifyClient({ apiKey: 'YOUR_API_KEY' });
+const { isPlaying, track } = await spotify.getNowPlaying();</code></pre>
+
+    <h2>Get an API key</h2>
+    <p>Keys are issued by hand for now. Request one through <a href="https://apcodesphere.xyz">apcodesphere.xyz</a>.</p>
+
+    <h2>Links</h2>
+    <ul>
+      <li>Built by <a href="https://apcodesphere.xyz">apcodesphere.xyz</a></li>
+    </ul>
+  </main>
+</body>
+</html>
