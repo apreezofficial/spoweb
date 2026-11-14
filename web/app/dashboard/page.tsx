@@ -49,7 +49,8 @@ export default function Dashboard() {
       failed: 'Spotify could not be connected. Try again.',
       login_required: 'Log in, then connect Spotify.',
     };
-    if (result && messages[result]) setNotice(messages[result]);
+    const reason = new URLSearchParams(window.location.search).get('reason');
+    if (result && messages[result]) setNotice(messages[result] + (reason ? ` (${reason})` : ''));
   }, []);
 
   function disconnectSpotify() {

@@ -47,7 +47,7 @@ export function readSessionToken(token: string | undefined): number | null {
 export async function setSession(userId: number): Promise<void> {
   (await cookies()).set(COOKIE, makeSessionToken(userId), {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: MAX_AGE_SECONDS,

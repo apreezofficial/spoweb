@@ -28,7 +28,9 @@ export async function GET(req: Request) {
     const profile = await fetchProfile(tokens.access_token);
     await saveSpotifyAccount(userId, profile.id, profile.display_name || profile.id, tokens.refresh_token);
     return back('connected');
-  } catch {
-    return back('failed');
+  } catch (e) {
+    // Show the step that failed (no secrets) so the cause is visible on the dashboard.
+    const reason = encodeURIComponent(((e as Error).message || 'unknown').slice(0, 120));
+    return NextResponse.redirect(new URL(`/dashboard?spotify=failed&reason=${reason}`, req.url));
   }
 }
