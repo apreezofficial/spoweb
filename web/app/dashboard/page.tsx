@@ -1,26 +1,32 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 type Key = { id: number; prefix: string; label: string; revoked_at: string | null };
+type Mode = 'login' | 'register';
 
-async function call(path: string, init: RequestInit = {}) {
+async function call(path: string, init: { method?: string; body?: unknown } = {}) {
   const res = await fetch(path, {
-    ...init,
+    method: init.method ?? 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+    headers: { 'Content-Type': 'application/json' },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
   return data;
 }
 
-/** Sign up, log in, and manage API keys. */
+/** Sign up, log in, and manage API keys for the spoweb widget. */
 export default function Dashboard() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [mode, setMode] = useState<Mode>('login');
   const [keys, setKeys] = useState<Key[]>([]);
   const [fresh, setFresh] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   async function loadKeys() {
     const res = await fetch('/api/keys', { credentials: 'same-origin' });
@@ -33,112 +39,219 @@ export default function Dashboard() {
     loadKeys();
   }, []);
 
-  async function auth(mode: 'login' | 'register', form: HTMLFormElement) {
+  async function run(action: () => Promise<void>) {
     setError('');
+    setBusy(true);
+    try {
+      await action();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function submitAuth(form: HTMLFormElement) {
     const f = new FormData(form);
-    try {
+    run(async () => {
       await call(`/api/auth/${mode}`, {
-        method: 'POST',
-        body: JSON.stringify({ email: f.get('email'), password: f.get('password') }),
+        body: { email: f.get('email'), password: f.get('password') },
       });
-      loadKeys();
-    } catch (e) {
-      setError((e as Error).message);
-    }
+      await loadKeys();
+    });
   }
 
-  async function createKey(form: HTMLFormElement) {
-    setError('');
-    try {
-      const data = await call('/api/keys', {
-        method: 'POST',
-        body: JSON.stringify({ label: new FormData(form).get('label') }),
-      });
+  function createKey(form: HTMLFormElement) {
+    const label = String(new FormData(form).get('label') || 'default');
+    run(async () => {
+      const data = await call('/api/keys', { body: { label } });
       setFresh(data.key);
-      loadKeys();
-    } catch (e) {
-      setError((e as Error).message);
-    }
+      setCopied(false);
+      form.reset();
+      await loadKeys();
+    });
   }
 
-  async function revoke(id: number) {
-    setError('');
+  function revoke(id: number) {
+    if (!window.confirm('Revoke this key? Sites using it will stop working.')) return;
+    run(async () => {
+      await call('/api/keys', { method: 'DELETE', body: { id } });
+      await loadKeys();
+    });
+  }
+
+  function logout() {
+    run(async () => {
+      await call('/api/auth/logout');
+      setFresh(null);
+      await loadKeys();
+    });
+  }
+
+  async function copyKey() {
+    if (!fresh) return;
     try {
-      await call('/api/keys', { method: 'DELETE', body: JSON.stringify({ id }) });
-      loadKeys();
-    } catch (e) {
-      setError((e as Error).message);
+      await navigator.clipboard.writeText(fresh);
+      setCopied(true);
+    } catch {
+      setError('Could not copy. Select the key and copy it manually.');
     }
   }
 
-  async function logout() {
-    await call('/api/auth/logout', { method: 'POST' });
-    setFresh(null);
-    loadKeys();
-  }
+  const header = (
+    <header className="top">
+      <nav>
+        <Link className="brand" href="/">spoweb</Link>
+        <div className="links">
+          <Link href="/sample">Sample</Link>
+          {loggedIn && (
+            <button className="link" onClick={logout} disabled={busy}>Log out</button>
+          )}
+        </div>
+      </nav>
+    </header>
+  );
 
-  if (loggedIn === null) return <div className="wrap"><p>Loading…</p></div>;
+  const footer = (
+    <footer className="site-foot">
+      <span>spoweb</span>
+      <span>Built by <a href="https://preciousadeodokun.com.ng">preciousadeodokun.com.ng</a></span>
+    </footer>
+  );
+
+  if (loggedIn === null) {
+    return (
+      <div className="page">
+        {header}
+        <main className="page-main"><p>Loading…</p></main>
+        {footer}
+      </div>
+    );
+  }
 
   return (
-    <div className="wrap">
-      <nav>
-        <a className="brand" href="/">spoweb</a>
-      </nav>
-      <section>
-        <span className="eyebrow">API keys</span>
-        {error && <p style={{ color: '#f87171' }}>{error}</p>}
-
+    <div className="page">
+      {header}
+      <main className="page-main">
         {!loggedIn ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-              auth(submitter?.value === 'register' ? 'register' : 'login', e.currentTarget);
-            }}
-            style={{ display: 'grid', gap: 10, maxWidth: 360 }}
-          >
-            <input name="email" type="email" placeholder="Email" required />
-            <input name="password" type="password" placeholder="Password (8+ characters)" minLength={8} required />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" name="mode" value="login">Log in</button>
-              <button className="btn ghost" name="mode" value="register">Create account</button>
+          <>
+            <span className="eyebrow">Developer access</span>
+            <h1 className="sample-title">{mode === 'login' ? 'Log in' : 'Create your account'}</h1>
+            <div className="card">
+              <p className="lead">
+                {mode === 'login'
+                  ? 'Log in to manage your spoweb API keys.'
+                  : 'Create an account to get API keys for the spoweb widget.'}
+              </p>
+              <form
+                className="stack"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitAuth(e.currentTarget);
+                }}
+              >
+                <label className="field">
+                  <span>Email</span>
+                  <input className="input" name="email" type="email" autoComplete="email" required />
+                </label>
+                <label className="field">
+                  <span>Password</span>
+                  <input
+                    className="input"
+                    name="password"
+                    type="password"
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    minLength={8}
+                    required
+                  />
+                </label>
+                {error && <p className="notice">{error}</p>}
+                <button className="btn btn-block" disabled={busy}>
+                  {busy ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
+                </button>
+              </form>
             </div>
-          </form>
+            <p className="hint" style={{ textAlign: 'center', marginTop: 16 }}>
+              {mode === 'login' ? "New here? " : 'Already have an account? '}
+              <button
+                className="link"
+                onClick={() => {
+                  setError('');
+                  setMode(mode === 'login' ? 'register' : 'login');
+                }}
+              >
+                {mode === 'login' ? 'Create an account' : 'Log in'}
+              </button>
+            </p>
+          </>
         ) : (
           <>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createKey(e.currentTarget);
-              }}
-              style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
-            >
-              <input name="label" placeholder="Label, e.g. my-portfolio" maxLength={60} />
-              <button className="btn">Create key</button>
-              <button type="button" className="btn ghost" onClick={logout}>Log out</button>
-            </form>
+            <span className="eyebrow">Dashboard</span>
+            <h1 className="sample-title">Your API keys</h1>
 
-            {fresh && (
-              <p style={{ marginTop: 16 }}>
-                Copy this key now. It won&apos;t be shown again: <code style={{ wordBreak: 'break-all' }}>{fresh}</code>
-              </p>
-            )}
+            <div className="card">
+              <h2>Create a key</h2>
+              <p className="lead">Give it a name so you remember where it&apos;s used.</p>
+              <form
+                className="row-actions"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  createKey(e.currentTarget);
+                }}
+              >
+                <input className="input" name="label" placeholder="e.g. my-portfolio" maxLength={60} style={{ flex: 1, minWidth: 180 }} />
+                <button className="btn" disabled={busy}>Create key</button>
+              </form>
+              {error && <p className="notice" style={{ marginTop: 12 }}>{error}</p>}
 
-            <h2 style={{ marginTop: 32 }}>Your keys</h2>
-            {keys.length === 0 && <p>No keys yet.</p>}
-            {keys.map((k) => (
-              <div key={k.id} style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0' }}>
-                <span>
-                  {k.label} · <code>{k.prefix}…</code> · {k.revoked_at ? 'revoked' : 'active'}
-                </span>
-                {!k.revoked_at && (
-                  <button className="btn ghost" onClick={() => revoke(k.id)}>Revoke</button>
-                )}
+              {fresh && (
+                <div style={{ marginTop: 18 }}>
+                  <p className="hint" style={{ marginTop: 0 }}>
+                    Copy your key now. For your security it won&apos;t be shown again.
+                  </p>
+                  <div className="key-box">
+                    <code>{fresh}</code>
+                    <button className="btn small" onClick={copyKey}>{copied ? 'Copied' : 'Copy'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="card">
+              <div className="row-between">
+                <h2>Keys</h2>
+                <span className="hint" style={{ margin: 0 }}>{keys.filter((k) => !k.revoked_at).length} active</span>
               </div>
-            ))}
+              {keys.length === 0 ? (
+                <div className="empty">No keys yet. Create one above to get started.</div>
+              ) : (
+                <div className="key-list">
+                  {keys.map((k) => (
+                    <div key={k.id} className="key-item">
+                      <div style={{ minWidth: 0 }}>
+                        <div className="label">{k.label}</div>
+                        <div className="prefix">{k.prefix}…</div>
+                      </div>
+                      <div className="row-actions">
+                        <span className={`status ${k.revoked_at ? '' : 'active'}`}>
+                          {k.revoked_at ? 'Revoked' : 'Active'}
+                        </span>
+                        {!k.revoked_at && (
+                          <button className="btn small danger" onClick={() => revoke(k.id)} disabled={busy}>
+                            Revoke
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="hint">Keys are sent in the <code>x-api-key</code> header. Only the first characters are shown here.</p>
+            </div>
           </>
         )}
-      </section>
+      </main>
+      {footer}
     </div>
   );
 }
