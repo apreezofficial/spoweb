@@ -78,7 +78,7 @@ const { isPlaying, track } = await spotify.getNowPlaying();`}</code>
       </section>
 
       <footer>
-        Built by <a href="https://preciousadedokun.com.ng">preciousadedokun.com.ng</a>
+        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Built by <a href="https://preciousadedokun.com.ng">preciousadedokun.com.ng</a>
       </footer>
 
       {flags.showDevBadge && process.env.NODE_ENV === 'development' && (
