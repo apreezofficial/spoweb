@@ -8,6 +8,7 @@ export default function Home() {
         <div className="links">
           <a href="#usage">Usage</a>
           <a href="/sample">Sample</a>
+          <a href="/playground">Playground</a>
           <a href="/dashboard">Get a key</a>
           <a href="#open-source">Open source</a>
         </div>
