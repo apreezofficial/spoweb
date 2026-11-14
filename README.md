@@ -38,6 +38,10 @@ console.log(track?.title, track?.artist, isPlaying);
 | `emptyText` | "I'm not listening…" | Text shown when there is no track |
 | `className`, `style` | — | Styling for the wrapper |
 
+## Getting a key
+
+Sign up and create a key at your spoweb backend (the `backend/` folder in this repo, served at `/`). Pass its address as `baseUrl` if you run your own.
+
 ## Keeping your key safe
 
 Browser code exposes its key to every visitor. For a public site this is
