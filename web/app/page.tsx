@@ -7,7 +7,6 @@ export default function Home() {
       <nav>
         <a className="brand" href="/">spoweb</a>
         <div className="links">
-          <a href="#usage">Usage</a>
           <a href="/sample">Sample</a>
           <a href="/playground">Playground</a>
           <a href="/dashboard">Get a key</a>
