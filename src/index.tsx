@@ -15,18 +15,18 @@ export type NowPlaying = {
 };
 
 export type SpotifyClientOptions = {
-  /** API key you received from apcodesphere.xyz */
+  /** API key you created at spoweb.apcodesphere.xyz/dashboard */
   apiKey: string;
-  /** Override the API host (defaults to https://apcodesphere.xyz). */
+  /** Override the API host (defaults to https://spoweb.apcodesphere.xyz). */
   baseUrl?: string;
 };
 
-const DEFAULT_BASE_URL = "https://apcodesphere.xyz";
+const DEFAULT_BASE_URL = "https://spoweb.apcodesphere.xyz";
 
 /** Framework-agnostic client. Works in browsers, Node 18+, Next.js route handlers. */
 export function createSpotifyClient({ apiKey, baseUrl = DEFAULT_BASE_URL }: SpotifyClientOptions) {
   if (!apiKey) throw new Error('spoweb: apiKey is required');
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/api/now-playing.php`;
+  const endpoint = `${baseUrl.replace(/\/$/, '')}/api/v1/now-playing`;
 
   return {
     async getNowPlaying(): Promise<NowPlaying> {
