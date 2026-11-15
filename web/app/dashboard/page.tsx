@@ -229,6 +229,9 @@ export default function Dashboard() {
                   <p className="lead" style={{ marginTop: 8 }}>
                     Connect your Spotify account so your widgets show what you are listening to.
                   </p>
+                  <p className="hint" style={{ marginTop: 8 }}>
+                    Your account is created. Precious adds your name manually to enable Spotify. It takes a short time, and you will be set once it is done.
+                  </p>
                   <a className="btn" href="/api/spotify/connect">Connect Spotify</a>
                 </>
               )}

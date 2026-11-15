@@ -43,6 +43,16 @@ export default function HeroNowPlaying() {
           </span>
         )}
       </div>
+      {data?.queue && data.queue.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="hint" style={{ margin: '0 0 6px' }}>Up next</div>
+          {data.queue.slice(0, 3).map((t, i) => (
+            <div key={`${t.id}-${i}`} className="sub" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {i + 1}. {t.title} · {t.artist}
+            </div>
+          ))}
+        </div>
+      )}
       <p className="hint" style={{ marginTop: 12 }}>
         {data?.isPlaying ? 'This is live from Spotify. ' : data?.track ? 'Last played. ' : ''}
         <Link href="/sample" style={{ color: 'var(--accent)' }}>See the full sample and queue →</Link>
